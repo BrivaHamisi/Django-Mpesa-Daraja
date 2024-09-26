@@ -69,14 +69,25 @@ def getAccessToken(request):
 
 
 class CheckoutMpesaView(APIView):
+    permissions_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get(self, request, *args, **kwargs):
-        all_payments = Payment.objects.filter(user=request.user)
+        user = request.user
+        if user.is_authenticated:
+            # Show only payments for the authenticated user
+            all_payments = Payment.objects.filter(user=user)
+        else:
+            # Show all payments for unauthenticated users
+            all_payments = Payment.objects.all()
+
         serializer = PaymentSerializer(all_payments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         user = request.user
+
+        if not user.is_authenticated:
+            return Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Accessing data from the request
         phoneNumber: any = request.data.get('phoneNumber')
